@@ -1,0 +1,37 @@
+# Core Framework
+fastapi
+uvicorn
+
+# LangChain
+langchain
+langchain-community
+langchain-groq
+
+# Vector Database
+chromadb
+
+# Embeddings
+sentence-transformers
+
+# BM25
+rank_bm25
+
+# Reranker
+torch
+transformers
+
+# Groq
+groq
+
+# Evaluation
+ragas
+
+# Database
+supabase
+
+# Environment
+python-dotenv
+
+# File Processing
+pypdf
+python-multipart
