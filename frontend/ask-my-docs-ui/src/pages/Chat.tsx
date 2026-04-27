@@ -12,8 +12,8 @@ const Chat = () => {
       style={{
         display: "flex",
         overflow: "hidden",
-        height: "100vh",
-        width: "100vw",
+        height: "100%",
+        width: "100%",
         padding: 12,
         gap: 12,
         position: "relative",
@@ -127,10 +127,10 @@ const Chat = () => {
           alignSelf: "stretch",
         }}
       >
-        {/* <ChatBox
+        <ChatBox
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           sidebarOpen={sidebarOpen}
-        /> */}
+        />
       </motion.div>
     </div>
   );
