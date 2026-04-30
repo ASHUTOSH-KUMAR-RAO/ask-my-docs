@@ -65,25 +65,26 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(data: dict) -> str:
     """
-    Creates a signed JWT access token.
+    Creates a signed JWT access token with short expiry (30 min).
 
     JWT (JSON Web Token) contains:
     - Payload: user data (e.g., user_id)
     - Expiry: token expires after ACCESS_TOKEN_EXPIRE_MINUTES
     - Signature: signed with SECRET_KEY using HS256 algorithm
+    - Type: "access" to distinguish from refresh token
 
     Args:
         data: Dictionary containing user info (e.g., {"sub": user_id})
     Returns:
-        Encoded JWT token string
+        Encoded JWT access token string
     """
     to_encode = data.copy()
 
-    # Set token expiry time
+    # Set token expiry time — 30 minutes
     expire = datetime.utcnow() + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "type": "access"})
 
     # Encode and sign the token using SECRET_KEY and HS256 algorithm
     return jwt.encode(
@@ -93,9 +94,84 @@ def create_access_token(data: dict) -> str:
     )
 
 
-def verify_token(token: str = Depends(oauth2_scheme)):
+def create_refresh_token(data: dict) -> str:
     """
-    Dependency function that verifies JWT token on protected routes.
+    Creates a signed JWT refresh token with long expiry (7 days).
+
+    Refresh token is used to get a new access token without re-login.
+    It has a longer expiry than access token.
+    Type is set to "refresh" to distinguish from access token.
+
+    Args:
+        data: Dictionary containing user info (e.g., {"sub": user_id})
+    Returns:
+        Encoded JWT refresh token string
+    """
+    to_encode = data.copy()
+
+    # Set token expiry time — 7 days
+    expire = datetime.utcnow() + timedelta(
+        days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+    )
+    to_encode.update({"exp": expire, "type": "refresh"})
+
+    # Encode and sign the token
+    return jwt.encode(
+        to_encode,
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM
+    )
+
+
+def verify_refresh_token(token: str) -> str:
+    """
+    Verifies a refresh token and returns user_id.
+
+    Checks:
+    1. Token is valid and not expired
+    2. Token type is "refresh" (not access)
+    3. user_id exists in payload
+
+    Args:
+        token: Refresh token string
+    Returns:
+        user_id (str) extracted from token payload
+    Raises:
+        HTTPException 401: If token is invalid, expired, or wrong type
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM]
+        )
+
+        # Ensure it's a refresh token — not an access token
+        if payload.get("type") != "refresh":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token type"
+            )
+
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token"
+            )
+
+        return user_id
+
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token"
+        )
+
+
+def verify_token(token: str = Depends(oauth2_scheme)) -> str:
+    """
+    Dependency function that verifies JWT access token on protected routes.
 
     FastAPI's Depends() injects this automatically on protected endpoints.
     If token is invalid or expired, raises 401 Unauthorized.
@@ -120,6 +196,10 @@ def verify_token(token: str = Depends(oauth2_scheme)):
             settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM]
         )
+
+        # Ensure it's an access token — not a refresh token
+        if payload.get("type") != "access":
+            raise credentials_exception
 
         # Extract user_id from token payload
         # "sub" (subject) is a standard JWT claim for user identity
