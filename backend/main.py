@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes.auth_routes import router as auth_router
+from routes.document_routes import router as document_router
 
 app = FastAPI(
     title="Ask My Docs API",
@@ -18,6 +19,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth_router)
+app.include_router(document_router)
 
 @app.get("/")
 async def root():
@@ -26,3 +28,7 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
