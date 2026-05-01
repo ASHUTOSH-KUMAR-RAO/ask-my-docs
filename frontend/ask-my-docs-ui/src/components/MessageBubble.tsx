@@ -3,33 +3,24 @@ import { Copy, ThumbsUp, ThumbsDown, Check } from "lucide-react";
 import CitationCard from "@/components/CitationCard";
 
 interface Citation {
-  filename: string;
+  citation_number: number;
+  text: string;
   page: number;
-  quote: string;
 }
 
 interface MessageBubbleProps {
   role: "user" | "assistant";
   content: string;
-  bullets?: string[];
-  citation?: Citation;
+  citations?: Citation[];
 }
 
-const MessageBubble = ({
-  role,
-  content,
-  bullets,
-  citation,
-}: MessageBubbleProps) => {
+const MessageBubble = ({ role, content, citations }: MessageBubbleProps) => {
   const [copied, setCopied] = useState(false);
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
 
   const handleCopy = () => {
-    const text = bullets
-      ? `${content}\n${bullets.map((b) => `• ${b}`).join("\n")}`
-      : content;
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -92,31 +83,7 @@ const MessageBubble = ({
             lineHeight: 1.7,
           }}
         >
-          <p style={{ margin: "0 0 6px" }}>{content}</p>
-          {bullets && bullets.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {bullets.map((b, i) => (
-                <div
-                  key={i}
-                  style={{ display: "flex", alignItems: "flex-start", gap: 8 }}
-                >
-                  <div
-                    style={{
-                      width: 4,
-                      height: 4,
-                      borderRadius: "50%",
-                      backgroundColor: "#4ade80",
-                      marginTop: 7,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span style={{ color: "var(--text-primary)", fontSize: 13 }}>
-                    {b}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+          <p style={{ margin: "0 0 6px", whiteSpace: "pre-wrap" }}>{content}</p>
         </div>
 
         {/* Actions */}
@@ -188,13 +155,25 @@ const MessageBubble = ({
           </button>
         </div>
 
-        {/* Citation */}
-        {citation && (
-          <CitationCard
-            filename={citation.filename}
-            page={citation.page}
-            quote={citation.quote}
-          />
+        {/* Citations */}
+        {citations && citations.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+              marginTop: 10,
+            }}
+          >
+            {citations.map((citation) => (
+              <CitationCard
+                key={citation.citation_number}
+                citationNumber={citation.citation_number}
+                page={citation.page}
+                text={citation.text}
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>

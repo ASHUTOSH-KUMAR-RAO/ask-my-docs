@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -7,23 +8,68 @@ import {
   Compass,
   ChevronLeft,
   ChevronsUpDown,
+  Trash2,
 } from "lucide-react";
+import { api } from "../services/api";
+
+interface Document {
+  id: string;
+  name: string;
+  size: number;
+  created_at: string;
+}
 
 interface SidebarProps {
   isOpen: boolean;
   onToggle: () => void;
+  onSelectDocument: (documentId: string) => void;
+  selectedDocumentId: string | null;
 }
 
-const chatHistory = [
-  "What is GST return filing?",
-  "Explain section 80C deductions",
-  "How to file ITR online?",
-  "TDS rules for salary income",
-  "Capital gains tax explained",
-];
-
-const Sidebar = ({ isOpen, onToggle }: SidebarProps) => {
+const Sidebar = ({
+  isOpen,
+  onToggle,
+  onSelectDocument,
+  selectedDocumentId,
+}: SidebarProps) => {
   const navigate = useNavigate();
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const name = localStorage.getItem("name") || "User";
+  const email = localStorage.getItem("email") || "";
+  const initial = name.charAt(0).toUpperCase();
+
+  useEffect(() => {
+    if (isOpen) fetchDocuments();
+  }, [isOpen]);
+
+  const fetchDocuments = async () => {
+    setLoading(true);
+    try {
+      const data = await api.getDocuments();
+      setDocuments(data.documents || []);
+    } catch (err) {
+      console.error("Failed to fetch documents:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent, documentId: string) => {
+    e.stopPropagation();
+    try {
+      await api.deleteDocument(documentId);
+      setDocuments((prev) => prev.filter((d) => d.id !== documentId));
+    } catch (err) {
+      console.error("Failed to delete document:", err);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/");
+  };
 
   return (
     <AnimatePresence>
@@ -52,22 +98,17 @@ const Sidebar = ({ isOpen, onToggle }: SidebarProps) => {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div
+              <img
+                src="/chat.jpg"
+                alt="logo"
                 style={{
                   width: 34,
                   height: 34,
                   borderRadius: "50%",
-                  background: "linear-gradient(135deg, #4ade80, #16a34a)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  objectFit: "cover",
                   flexShrink: 0,
                 }}
-              >
-                <svg width="16" height="16" fill="white" viewBox="0 0 24 24">
-                  <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
+              />
               <span
                 style={{
                   fontWeight: 600,
@@ -111,9 +152,9 @@ const Sidebar = ({ isOpen, onToggle }: SidebarProps) => {
               flexShrink: 0,
             }}
           >
-            {/* New Chat */}
             <motion.button
               whileTap={{ scale: 0.98 }}
+              onClick={() => onSelectDocument("")}
               style={{
                 width: "100%",
                 display: "flex",
@@ -138,7 +179,6 @@ const Sidebar = ({ isOpen, onToggle }: SidebarProps) => {
               New Chat
             </motion.button>
 
-            {/* Library */}
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={() => navigate("/home")}
@@ -165,12 +205,12 @@ const Sidebar = ({ isOpen, onToggle }: SidebarProps) => {
               }
             >
               <Library size={15} color="#9CA3AF" style={{ flexShrink: 0 }} />
-              Library
+              Upload
             </motion.button>
 
-            {/* Discover */}
             <motion.button
               whileTap={{ scale: 0.98 }}
+              onClick={() => navigate("/discover")}
               style={{
                 width: "100%",
                 display: "flex",
@@ -208,7 +248,7 @@ const Sidebar = ({ isOpen, onToggle }: SidebarProps) => {
             }}
           />
 
-          {/* ── Chats Label ── */}
+          {/* ── Documents Label ── */}
           <div style={{ padding: "0 14px 6px", flexShrink: 0 }}>
             <span
               style={{
@@ -219,42 +259,91 @@ const Sidebar = ({ isOpen, onToggle }: SidebarProps) => {
                 color: "var(--text-muted)",
               }}
             >
-              Chats
+              Documents
             </span>
           </div>
 
-          {/* ── Chat History ── */}
+          {/* ── Documents List ── */}
           <ScrollArea style={{ flex: 1, padding: "0 10px" }}>
             <div style={{ display: "flex", flexDirection: "column" }}>
-              {chatHistory.map((chat, i) => (
-                <motion.button
-                  key={i}
-                  whileTap={{ scale: 0.98 }}
+              {loading ? (
+                <p
                   style={{
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "9px 12px",
-                    borderRadius: 10,
-                    border: "none",
-                    backgroundColor: "transparent",
-                    color: "var(--text-secondary)",
-                    cursor: "pointer",
-                    fontSize: 12.5,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    display: "block",
+                    fontSize: 12,
+                    color: "var(--text-muted)",
+                    padding: "8px 12px",
                   }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.backgroundColor = "var(--card-bg)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor = "transparent")
-                  }
                 >
-                  {chat}
-                </motion.button>
-              ))}
+                  Loading...
+                </p>
+              ) : documents.length === 0 ? (
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: "var(--text-muted)",
+                    padding: "8px 12px",
+                  }}
+                >
+                  No documents yet
+                </p>
+              ) : (
+                documents.map((doc) => (
+                  <motion.button
+                    key={doc.id}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => onSelectDocument(doc.id)}
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "9px 12px",
+                      borderRadius: 10,
+                      border:
+                        selectedDocumentId === doc.id
+                          ? "1px solid #2A4A3A"
+                          : "none",
+                      backgroundColor:
+                        selectedDocumentId === doc.id
+                          ? "#1E3A2A"
+                          : "transparent",
+                      color:
+                        selectedDocumentId === doc.id
+                          ? "var(--text-primary)"
+                          : "var(--text-secondary)",
+                      cursor: "pointer",
+                      fontSize: 12.5,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (selectedDocumentId !== doc.id)
+                        e.currentTarget.style.backgroundColor =
+                          "var(--card-bg)";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedDocumentId !== doc.id)
+                        e.currentTarget.style.backgroundColor = "transparent";
+                    }}
+                  >
+                    <span
+                      style={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {doc.name}
+                    </span>
+                    <Trash2
+                      size={12}
+                      color="#6B7280"
+                      style={{ flexShrink: 0 }}
+                      onClick={(e) => handleDelete(e, doc.id)}
+                    />
+                  </motion.button>
+                ))
+              )}
             </div>
           </ScrollArea>
 
@@ -262,6 +351,7 @@ const Sidebar = ({ isOpen, onToggle }: SidebarProps) => {
           <div style={{ padding: "8px 10px 12px", flexShrink: 0 }}>
             <motion.button
               whileTap={{ scale: 0.98 }}
+              onClick={handleLogout}
               style={{
                 width: "100%",
                 display: "flex",
@@ -296,7 +386,7 @@ const Sidebar = ({ isOpen, onToggle }: SidebarProps) => {
                     flexShrink: 0,
                   }}
                 >
-                  A
+                  {initial}
                 </div>
                 <div style={{ textAlign: "left" }}>
                   <p
@@ -308,7 +398,7 @@ const Sidebar = ({ isOpen, onToggle }: SidebarProps) => {
                       margin: 0,
                     }}
                   >
-                    Ashutosh
+                    {name}
                   </p>
                   <p
                     style={{
@@ -319,7 +409,7 @@ const Sidebar = ({ isOpen, onToggle }: SidebarProps) => {
                       margin: 0,
                     }}
                   >
-                    ashutosh@gmail.com
+                    {email}
                   </p>
                 </div>
               </div>

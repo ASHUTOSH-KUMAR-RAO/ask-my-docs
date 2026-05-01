@@ -2,10 +2,34 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
 
 const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const { signup, loading, error } = useAuth();
+
+  const handleSignup = async () => {
+    if (!name || !email || !password || !confirmPassword) {
+      setValidationError("All fields are required");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setValidationError("Passwords do not match");
+      return;
+    }
+    if (password.length < 6) {
+      setValidationError("Password must be at least 6 characters");
+      return;
+    }
+    setValidationError(null);
+    await signup(name, email, password);
+  };
 
   return (
     <div
@@ -85,6 +109,8 @@ const Signup = () => {
               <input
                 type="text"
                 placeholder="Ashutosh Kumar Rao"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 style={{
                   backgroundColor: "#12122a",
                   border: "1px solid #2A2A3A",
@@ -113,6 +139,8 @@ const Signup = () => {
               <input
                 type="email"
                 placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 style={{
                   backgroundColor: "#12122a",
                   border: "1px solid #2A2A3A",
@@ -142,6 +170,8 @@ const Signup = () => {
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   style={{
                     backgroundColor: "#12122a",
                     border: "1px solid #2A2A3A",
@@ -189,6 +219,8 @@ const Signup = () => {
                 <input
                   type={showConfirm ? "text" : "password"}
                   placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   style={{
                     backgroundColor: "#12122a",
                     border: "1px solid #2A2A3A",
@@ -202,6 +234,7 @@ const Signup = () => {
                   }}
                   onFocus={(e) => (e.target.style.borderColor = "#4ade80")}
                   onBlur={(e) => (e.target.style.borderColor = "#2A2A3A")}
+                  onKeyDown={(e) => e.key === "Enter" && handleSignup()}
                 />
                 <button
                   onClick={() => setShowConfirm(!showConfirm)}
@@ -223,24 +256,35 @@ const Signup = () => {
               </div>
             </div>
 
+            {/* Error */}
+            {(validationError || error) && (
+              <p style={{ color: "#EF4444", fontSize: "12px", margin: 0 }}>
+                {validationError || error}
+              </p>
+            )}
+
             {/* Signup Button */}
             <motion.button
               whileHover={{ scale: 1.02, opacity: 0.9 }}
               whileTap={{ scale: 0.98 }}
+              onClick={handleSignup}
+              disabled={loading}
               style={{
                 width: "100%",
                 padding: "14px",
                 borderRadius: "12px",
-                background: "linear-gradient(135deg, #4ade80, #16a34a)",
+                background: loading
+                  ? "#374151"
+                  : "linear-gradient(135deg, #4ade80, #16a34a)",
                 color: "white",
                 border: "none",
-                cursor: "pointer",
+                cursor: loading ? "default" : "pointer",
                 fontSize: "14px",
                 fontWeight: 600,
                 marginTop: "4px",
               }}
             >
-              Create Account
+              {loading ? "Creating account..." : "Create Account"}
             </motion.button>
           </div>
         </motion.div>
@@ -261,7 +305,6 @@ const Signup = () => {
             overflow: "hidden",
           }}
         >
-          {/* Grid Pattern */}
           <svg
             style={{
               position: "absolute",
@@ -290,7 +333,6 @@ const Signup = () => {
             <rect width="100%" height="100%" fill="url(#grid2)" />
           </svg>
 
-          {/* Glow */}
           <div
             style={{
               position: "absolute",
@@ -304,7 +346,6 @@ const Signup = () => {
             }}
           />
 
-          {/* Logo */}
           <div
             style={{
               display: "flex",
@@ -331,7 +372,6 @@ const Signup = () => {
             </span>
           </div>
 
-          {/* Bottom Text */}
           <div style={{ position: "relative", zIndex: 1 }}>
             <h2
               style={{

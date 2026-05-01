@@ -1,95 +1,42 @@
 import { useState, useRef, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Mic, Send, Share2, MoreHorizontal, PanelLeftOpen } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Mic, Send, Share2, MoreHorizontal, PanelLeftOpen, X, Trash2, Download, Copy, Check } from "lucide-react";
 import MessageBubble from "@/components/MessageBubble";
-
-interface Message {
-  id: number;
-  role: "user" | "assistant";
-  content: string;
-  bullets?: string[];
-  citation?: {
-    filename: string;
-    page: number;
-    quote: string;
-  };
-}
-
-const DEMO_MESSAGES: Message[] = [
-  {
-    id: 1,
-    role: "user",
-    content: "What is GST return filing?",
-  },
-  {
-    id: 2,
-    role: "assistant",
-    content:
-      "GST return filing is a process where businesses submit their tax details to the government. Here's what you need to know:",
-    bullets: [
-      "GSTR-1 for outward supplies",
-      "GSTR-3B for monthly summary",
-      "Annual return via GSTR-9",
-    ],
-    citation: {
-      filename: "GST_Handbook_2024.pdf",
-      page: 12,
-      quote:
-        "Every registered taxpayer must file returns monthly, quarterly, or annually depending on their turnover.",
-    },
-  },
-];
+import { useChat } from "../hooks/useChat";
 
 interface ChatBoxProps {
   onToggleSidebar?: () => void;
   sidebarOpen?: boolean;
+  documentId: string | null;
 }
 
-const ChatBox = ({ onToggleSidebar, sidebarOpen }: ChatBoxProps) => {
-  const [messages, setMessages] = useState<Message[]>(DEMO_MESSAGES);
+const ChatBox = ({ onToggleSidebar, sidebarOpen, documentId }: ChatBoxProps) => {
+  const { messages, loading, sendMessage } = useChat(documentId || "");
   const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]);
+  }, [messages, loading]);
+
+  // Close menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleSend = () => {
-    if (!input.trim()) return;
-
-    const userMsg: Message = {
-      id: Date.now(),
-      role: "user",
-      content: input.trim(),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
+    if (!input.trim() || !documentId) return;
+    sendMessage(input.trim());
     setInput("");
-    setIsTyping(true);
-
-    // Simulated reply
-    setTimeout(() => {
-      const botMsg: Message = {
-        id: Date.now() + 1,
-        role: "assistant",
-        content:
-          "I found relevant information in your documents. Here's a summary based on the uploaded files:",
-        bullets: [
-          "Section 80C allows deductions up to ₹1.5 lakh",
-          "Eligible investments include PPF, ELSS, LIC premiums",
-          "Deduction reduces taxable income directly",
-        ],
-        citation: {
-          filename: "ITR_Guide_2024.pdf",
-          page: 5,
-          quote:
-            "Deductions under Section 80C are available to both individuals and Hindu Undivided Families.",
-        },
-      };
-      setIsTyping(false);
-      setMessages((prev) => [...prev, botMsg]);
-    }, 1500);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -97,6 +44,45 @@ const ChatBox = ({ onToggleSidebar, sidebarOpen }: ChatBoxProps) => {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  // ── 3 dot menu features ──
+
+  const handleClearChat = () => {
+    if (confirm("Clear all messages?")) {
+      window.location.reload(); // simple reload se clear
+    }
+    setMenuOpen(false);
+  };
+
+  const handleDownload = () => {
+    const text = messages
+      .map((m) => `${m.role === "user" ? "You" : "Assistant"}: ${m.content}`)
+      .join("\n\n");
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "conversation.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+    setMenuOpen(false);
+  };
+
+  const handleCopyAll = () => {
+    const text = messages
+      .map((m) => `${m.role === "user" ? "You" : "Assistant"}: ${m.content}`)
+      .join("\n\n");
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    setMenuOpen(false);
+  };
+
+  // ── Share feature ──
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    alert("Link copied to clipboard!");
   };
 
   return (
@@ -120,166 +106,194 @@ const ChatBox = ({ onToggleSidebar, sidebarOpen }: ChatBoxProps) => {
           flexShrink: 0,
         }}
       >
+        {/* Left side */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {/* Show toggle button only when sidebar is closed */}
           {!sidebarOpen && onToggleSidebar && (
             <motion.button
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               onClick={onToggleSidebar}
               style={{
-                width: 28,
-                height: 28,
-                borderRadius: 7,
+                width: 28, height: 28, borderRadius: 7,
                 border: "1px solid var(--border)",
                 backgroundColor: "transparent",
                 color: "var(--text-secondary)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                marginRight: 2,
+                cursor: "pointer", display: "flex",
+                alignItems: "center", justifyContent: "center", marginRight: 2,
               }}
             >
               <PanelLeftOpen size={14} />
             </motion.button>
           )}
-          <span
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: "var(--text-primary)",
-            }}
-          >
+
+          {/* Logo - chat.jpg */}
+          <img
+            src="/chat.jpg"
+            alt="logo"
+            style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }}
+          />
+
+          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
             Ask My Docs Chat Assistant
           </span>
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 600,
-              border: "1px solid var(--border-subtle)",
-              color: "var(--text-secondary)",
-              padding: "2px 8px",
-              borderRadius: 5,
-              letterSpacing: "0.05em",
-            }}
-          >
-            FREE
-          </span>
+          {/* FREE badge removed */}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {/* Right side */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
+
+          {/* Share Button */}
           <button
+            onClick={handleShare}
             style={{
-              fontSize: 12,
-              fontWeight: 500,
+              fontSize: 12, fontWeight: 500,
               color: "var(--text-secondary)",
               border: "1px solid var(--border-subtle)",
               backgroundColor: "transparent",
-              padding: "4px 12px",
-              borderRadius: 6,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
+              padding: "4px 12px", borderRadius: 6,
+              cursor: "pointer", display: "flex",
+              alignItems: "center", gap: 5,
             }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.backgroundColor = "var(--card-bg)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.backgroundColor = "transparent")
-            }
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--card-bg)")}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
           >
             <Share2 size={12} />
             Share
           </button>
-          <button
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 6,
-              border: "1px solid var(--border)",
-              backgroundColor: "transparent",
-              color: "var(--text-secondary)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.backgroundColor = "var(--card-bg)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.backgroundColor = "transparent")
-            }
-          >
-            <MoreHorizontal size={15} />
-          </button>
+
+          {/* 3 Dot Menu */}
+          <div ref={menuRef} style={{ position: "relative" }}>
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              style={{
+                width: 30, height: 30, borderRadius: 6,
+                border: "1px solid var(--border)",
+                backgroundColor: menuOpen ? "var(--card-bg)" : "transparent",
+                color: "var(--text-secondary)",
+                cursor: "pointer", display: "flex",
+                alignItems: "center", justifyContent: "center",
+              }}
+            >
+              <MoreHorizontal size={15} />
+            </button>
+
+            {/* Dropdown Menu */}
+            <AnimatePresence>
+              {menuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  style={{
+                    position: "absolute",
+                    top: 36,
+                    right: 0,
+                    width: 200,
+                    backgroundColor: "var(--card-bg)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 10,
+                    overflow: "hidden",
+                    zIndex: 100,
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                  }}
+                >
+                  {/* Clear Chat */}
+                  <button
+                    onClick={handleClearChat}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center",
+                      gap: 10, padding: "10px 14px",
+                      backgroundColor: "transparent",
+                      border: "none", color: "#EF4444",
+                      cursor: "pointer", fontSize: 13,
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--background)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                  >
+                    <Trash2 size={14} />
+                    Clear Chat
+                  </button>
+
+                  <div style={{ height: 1, backgroundColor: "var(--border)" }} />
+
+                  {/* Download Conversation */}
+                  <button
+                    onClick={handleDownload}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center",
+                      gap: 10, padding: "10px 14px",
+                      backgroundColor: "transparent",
+                      border: "none", color: "var(--text-primary)",
+                      cursor: "pointer", fontSize: 13,
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--background)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                  >
+                    <Download size={14} />
+                    Download Conversation
+                  </button>
+
+                  <div style={{ height: 1, backgroundColor: "var(--border)" }} />
+
+                  {/* Copy All Messages */}
+                  <button
+                    onClick={handleCopyAll}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center",
+                      gap: 10, padding: "10px 14px",
+                      backgroundColor: "transparent",
+                      border: "none", color: "var(--text-primary)",
+                      cursor: "pointer", fontSize: 13,
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--background)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                  >
+                    {copied ? <Check size={14} color="#4ade80" /> : <Copy size={14} />}
+                    {copied ? "Copied!" : "Copy All Messages"}
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
       {/* ── Messages Area ── */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: "20px 20px 8px",
-        }}
-      >
+      <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 8px" }}>
+        {!documentId && (
+          <div style={{ textAlign: "center", marginTop: 60, color: "var(--text-muted)", fontSize: 13 }}>
+            Select a document from the sidebar to start chatting
+          </div>
+        )}
+
         {messages.map((msg) => (
           <MessageBubble
             key={msg.id}
             role={msg.role}
             content={msg.content}
-            bullets={msg.bullets}
-            citation={msg.citation}
+            citations={msg.citations}
           />
         ))}
 
-        {/* Typing indicator */}
-        {isTyping && (
+        {loading && (
           <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-            <div
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #4ade80, #16a34a)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <svg width="13" height="13" fill="white" viewBox="0 0 24 24">
-                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "10px 14px",
-                backgroundColor: "var(--card-bg)",
-                borderRadius: "2px 12px 12px 12px",
-              }}
-            >
+            <img
+              src="/chat.jpg"
+              alt="logo"
+              style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+            />
+            <div style={{
+              display: "flex", alignItems: "center", gap: 4,
+              padding: "10px 14px", backgroundColor: "var(--card-bg)",
+              borderRadius: "2px 12px 12px 12px",
+            }}>
               {[0, 1, 2].map((i) => (
                 <motion.div
                   key={i}
                   animate={{ opacity: [0.3, 1, 0.3] }}
-                  transition={{
-                    duration: 1.2,
-                    repeat: Infinity,
-                    delay: i * 0.2,
-                  }}
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    backgroundColor: "#4ade80",
-                  }}
+                  transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+                  style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#4ade80" }}
                 />
               ))}
             </div>
@@ -290,92 +304,52 @@ const ChatBox = ({ onToggleSidebar, sidebarOpen }: ChatBoxProps) => {
       </div>
 
       {/* ── Input Bar ── */}
-      <div
-        style={{
-          padding: "12px 16px",
-          borderTop: "1px solid var(--border)",
-          flexShrink: 0,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            backgroundColor: "var(--card-bg)",
-            border: "1px solid var(--border)",
-            borderRadius: 12,
-            padding: "8px 12px",
-          }}
-        >
+      <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border)", flexShrink: 0 }}>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8,
+          backgroundColor: "var(--card-bg)",
+          border: "1px solid var(--border)",
+          borderRadius: 12, padding: "8px 12px",
+        }}>
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Message Ask My Docs..."
+            placeholder={documentId ? "Message Ask My Docs..." : "Select a document first..."}
+            disabled={!documentId}
             style={{
-              flex: 1,
-              backgroundColor: "transparent",
-              border: "none",
-              outline: "none",
-              fontSize: 13,
-              color: "var(--text-primary)",
+              flex: 1, backgroundColor: "transparent",
+              border: "none", outline: "none",
+              fontSize: 13, color: "var(--text-primary)",
               caretColor: "#4ade80",
             }}
           />
-          <button
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 7,
-              border: "none",
-              backgroundColor: "transparent",
-              color: "var(--text-secondary)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.color = "var(--text-primary)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.color = "var(--text-secondary)")
-            }
-          >
+          <button style={{
+            width: 30, height: 30, borderRadius: 7,
+            border: "none", backgroundColor: "transparent",
+            color: "var(--text-secondary)", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
             <Mic size={15} />
           </button>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleSend}
-            disabled={!input.trim()}
+            disabled={!input.trim() || !documentId}
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              border: "none",
-              backgroundColor: input.trim() ? "#22c55e" : "var(--border)",
+              width: 32, height: 32, borderRadius: 8, border: "none",
+              backgroundColor: input.trim() && documentId ? "#22c55e" : "var(--border)",
               color: "white",
-              cursor: input.trim() ? "pointer" : "default",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "background 0.2s",
-              flexShrink: 0,
+              cursor: input.trim() && documentId ? "pointer" : "default",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transition: "background 0.2s", flexShrink: 0,
             }}
           >
             <Send size={14} />
           </motion.button>
         </div>
-        <p
-          style={{
-            textAlign: "center",
-            fontSize: 10.5,
-            color: "var(--text-muted)",
-            marginTop: 8,
-          }}
-        >
+        <p style={{ textAlign: "center", fontSize: 10.5, color: "var(--text-muted)", marginTop: 8 }}>
           Ask My Docs can make mistakes. Verify important information.
         </p>
       </div>
@@ -384,7 +358,3 @@ const ChatBox = ({ onToggleSidebar, sidebarOpen }: ChatBoxProps) => {
 };
 
 export default ChatBox;
-
-
-
-
