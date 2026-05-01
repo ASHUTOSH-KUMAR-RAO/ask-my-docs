@@ -27,10 +27,14 @@ export const api = {
 
   // Chat
   sendMessage: async (message: string, documentId: string) => {
-    const res = await fetch(`${BASE_URL}/chat`, {
+    const res = await fetch(`${BASE_URL}/query/`, {
       method: "POST",
       headers: getHeaders(),
-      body: JSON.stringify({ message, document_id: documentId }),
+      body: JSON.stringify({
+        query: message,
+        document_id: documentId,
+        top_k: 5,
+      }),
     });
     return res.json();
   },
@@ -48,9 +52,40 @@ export const api = {
   },
 
   getDocuments: async () => {
-    const res = await fetch(`${BASE_URL}/documents`, {
+    const res = await fetch(`${BASE_URL}/documents/`, {
       headers: getHeaders(),
     });
     return res.json();
+  },
+
+  deleteDocument: async (documentId: string) => {
+    const res = await fetch(`${BASE_URL}/documents/${documentId}`, {
+      method: "DELETE",
+      headers: getHeaders(),
+    });
+    return res.json();
+  },
+
+  // User
+  getMe: async () => {
+    const res = await fetch(`${BASE_URL}/auth/me`, {
+      headers: getHeaders(),
+    });
+    return res.json();
+  },
+
+  // Token refresh
+  refreshToken: async () => {
+    const refresh_token = localStorage.getItem("refresh_token");
+    const res = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token }),
+    });
+    const data = await res.json();
+    if (data.access_token) {
+      localStorage.setItem("token", data.access_token);
+    }
+    return data;
   },
 };

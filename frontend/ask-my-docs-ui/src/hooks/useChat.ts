@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { api } from "../services/api";
 
 interface Citation {
-  source: string;
-  page: number;
+  citation_number: number;
   text: string;
+  page: number;
 }
 
 interface Message {
@@ -13,46 +14,50 @@ interface Message {
   citations?: Citation[];
 }
 
-export const useChat = () => {
+export const useChat = (documentId: string) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const sendMessage = async (content: string) => {
     if (!content.trim()) return;
 
+    // User message add karo
     const userMsg: Message = {
       id: Date.now(),
       role: "user",
       content,
     };
-
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
+    setError(null);
 
     try {
-      // Backend connect hone par replace karenge
-      setTimeout(() => {
+      // Backend se response lo
+      const data = await api.sendMessage(content, documentId);
+
+      if (data.answer) {
         const assistantMsg: Message = {
           id: Date.now() + 1,
           role: "assistant",
-          content: "This is a dummy response. Backend integration coming soon!",
-          citations: [
-            {
-              source: "sample.pdf",
-              page: 1,
-              text: "Sample citation text.",
-            },
-          ],
+          content: data.answer,
+          citations: data.citations || [],
         };
         setMessages((prev) => [...prev, assistantMsg]);
-        setLoading(false);
-      }, 1000);
+      } else {
+        setError(data.detail || "Something went wrong!");
+      }
     } catch (err) {
+      setError("Failed to send message!");
+    } finally {
       setLoading(false);
     }
   };
 
-  const clearMessages = () => setMessages([]);
+  const clearMessages = () => {
+    setMessages([]);
+    setError(null);
+  };
 
-  return { messages, loading, sendMessage, clearMessages };
+  return { messages, loading, error, sendMessage, clearMessages };
 };

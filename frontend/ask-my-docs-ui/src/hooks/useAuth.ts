@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { api } from "../services/api";
 
 export const useAuth = () => {
   const [loading, setLoading] = useState(false);
@@ -10,10 +11,17 @@ export const useAuth = () => {
     setLoading(true);
     setError(null);
     try {
-      // Backend connect hone par replace karenge
-      const token = "dummy-token";
-      localStorage.setItem("token", token);
-      navigate("/home");
+      const data = await api.login(email, password);
+
+      if (data.access_token) {
+        localStorage.setItem("token", data.access_token)
+        localStorage.setItem("refresh_token", data.refresh_token)
+        localStorage.setItem("user_id", data.user_id)
+        localStorage.setItem("name", data.name)
+        navigate("/home");
+      } else {
+        setError(data.detail || "Login failed!");
+      }
     } catch (err) {
       setError("Login failed!");
     } finally {
@@ -25,8 +33,13 @@ export const useAuth = () => {
     setLoading(true);
     setError(null);
     try {
-      // Backend connect hone par replace karenge
-      navigate("/");
+      const data = await api.signup(name, email, password);
+
+      if (data.user_id) {
+        navigate("/");
+      } else {
+        setError(data.detail || "Signup failed!");
+      }
     } catch (err) {
       setError("Signup failed!");
     } finally {
@@ -36,6 +49,9 @@ export const useAuth = () => {
 
   const logout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("user_id");
+    localStorage.removeItem("name");
     navigate("/");
   };
 
@@ -43,5 +59,10 @@ export const useAuth = () => {
     return !!localStorage.getItem("token");
   };
 
-  return { login, signup, logout, loading, error, isAuthenticated };
+  const getUser = () => ({
+    user_id: localStorage.getItem("user_id"),
+    name: localStorage.getItem("name"),
+  });
+
+  return { login, signup, logout, loading, error, isAuthenticated, getUser };
 };

@@ -4,7 +4,7 @@ ingestion.py — Document processing and embedding pipeline
 This module handles the complete RAG ingestion pipeline:
 1. PDF text extraction
 2. Text chunking
-3. Embedding generation
+3. Embedding generation (ChromaDB default embedding)
 4. Vector storage in ChromaDB
 5. BM25 index creation for keyword search
 
@@ -12,8 +12,6 @@ Libraries used:
 - pypdf: Extract text from PDF files
 - langchain: Document loading and text splitting
   - RecursiveCharacterTextSplitter: Splits text into overlapping chunks
-- sentence-transformers: Generate dense vector embeddings
-  - Model: all-MiniLM-L6-v2 (fast, accurate, 384 dimensions)
 - chromadb: Vector database for storing and querying embeddings
 - rank_bm25: BM25Okapi for keyword-based sparse retrieval
 """
@@ -28,29 +26,18 @@ from chromadb.config import Settings
 from rank_bm25 import BM25Okapi
 
 # ── Lazy Loading ──────────────────────────────────────────────
-_embedding_model = None
 _chroma_client = None
-
-
-def get_embedding_model():
-    global _embedding_model
-    if _embedding_model is None:
-        print("Loading embedding model...")
-        import torch
-        torch.set_num_threads(1)  # ← Windows crash fix
-        from sentence_transformers import SentenceTransformer
-        _embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
-        print("Embedding model loaded!")
-    return _embedding_model
 
 
 def get_chroma_client():
     global _chroma_client
     if _chroma_client is None:
+        print("Initializing ChromaDB client...")
         _chroma_client = chromadb.PersistentClient(
             path="./chroma_db",
             settings=Settings(anonymized_telemetry=False)
         )
+        print("ChromaDB client ready")
     return _chroma_client
 
 
@@ -95,24 +82,19 @@ def chunk_text(pages: list[dict]) -> list[dict]:
     return chunks
 
 
-def generate_embeddings(texts: list[str]) -> list[list[float]]:
-    model = get_embedding_model()
-    embeddings = model.encode(texts, show_progress_bar=False)
-    return embeddings.tolist()
-
-
 def store_in_chromadb(document_id: str, chunks: list[dict]) -> None:
     client = get_chroma_client()
+
     collection = client.get_or_create_collection(
         name=f"doc_{document_id}",
         metadata={"hnsw:space": "cosine"}
     )
+
     texts = [chunk["text"] for chunk in chunks]
-    embeddings = generate_embeddings(texts)
     ids = [f"{document_id}_chunk_{i}" for i in range(len(chunks))]
     metadatas = [{"page": chunk["page"], "chunk_index": chunk["chunk_index"]} for chunk in chunks]
+
     collection.add(
-        embeddings=embeddings,
         documents=texts,
         metadatas=metadatas,
         ids=ids
@@ -131,26 +113,26 @@ def ingest_document(document_id: str, file_path: str) -> dict:
     try:
         print(f"Starting ingestion for {document_id}")
 
-        # Step 1 — Extract text
+        # Step 1 - Extract text
         pages = extract_text_from_pdf(file_path)
         print(f"Pages extracted: {len(pages)}")
         if not pages:
             raise ValueError("No text found in PDF")
 
-        # Step 2 — Chunk text
+        # Step 2 - Chunk text
         chunks = chunk_text(pages)
         print(f"Chunks created: {len(chunks)}")
         if not chunks:
             raise ValueError("No chunks created from PDF")
 
-        # Step 3 + 4 — Embed and store in ChromaDB
-        print("Loading embedding model & storing in ChromaDB...")
+        # Step 3 + 4 - Store in ChromaDB
+        print("Storing in ChromaDB...")
         store_in_chromadb(document_id, chunks)
-        print("Stored in ChromaDB ✅")
+        print("Stored in ChromaDB")
 
-        # Step 5 — Create BM25 index
+        # Step 5 - Create BM25 index
         create_bm25_index(document_id, chunks)
-        print("BM25 index created ✅")
+        print("BM25 index created")
 
         return {
             "document_id": document_id,
