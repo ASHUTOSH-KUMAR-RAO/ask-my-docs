@@ -9,8 +9,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    HF_TOKEN: str = ""  # ← HuggingFace token (optional)
 
     class Config:
         env_file = "../.env"
+        extra = "ignore"  # ← extra fields ko ignore karo
 
 settings = Settings()

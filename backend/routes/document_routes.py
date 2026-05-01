@@ -5,13 +5,6 @@ Routes:
 - POST /documents/upload  → Upload PDF document
 - GET  /documents         → Get all documents for current user
 - DELETE /documents/{id}  → Delete a document
-
-Libraries used:
-- pypdf: Extract text from PDF files
-- langchain: Document text splitting into chunks
-- chromadb: Vector database for storing embeddings
-- sentence-transformers: Generate text embeddings
-- rank_bm25: BM25 keyword search
 """
 
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
@@ -20,15 +13,13 @@ from supabase import create_client
 from config import settings
 import uuid
 import os
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
+import sys
+import subprocess
+import json
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
 supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-
-# Thread pool for running ingestion in background
-executor = ThreadPoolExecutor(max_workers=1)
 
 # Temporary upload folder
 UPLOAD_DIR = "uploads"
@@ -40,16 +31,6 @@ async def upload_document(
     file: UploadFile = File(...),
     user_id: str = Depends(verify_token)
 ):
-    """
-    Upload a PDF document.
-
-    Steps:
-    1. Validate file is PDF
-    2. Save file temporarily to uploads folder
-    3. Ingest document in background thread (extract text, chunk, embed, store in vector DB)
-    4. Store metadata in Supabase documents table
-    5. Return document info
-    """
     print(f"Upload request received from user: {user_id}")
 
     # Validate PDF
@@ -72,22 +53,33 @@ async def upload_document(
 
     print(f"File saved to: {file_path}, size: {len(content)}")
 
-    # Ingest document in background thread
+    # Ingest document via subprocess — server crash nahi hoga
     pages = 0
     chunks = 0
     try:
-        from ingestion import ingest_document
-        loop = asyncio.get_event_loop()
-        ingest_result = await loop.run_in_executor(
-            executor, ingest_document, file_id, file_path
+        print("Starting ingestion via subprocess...")
+        result = subprocess.run(
+            [sys.executable, "run_ingestion.py", file_id, file_path],
+            capture_output=True,
+            text=True,
+            timeout=120
         )
-        pages = ingest_result["pages"]
-        chunks = ingest_result["chunks"]
-        print(f"Ingestion complete ✅ — pages: {pages}, chunks: {chunks}")
+        print(f"Subprocess stdout: {result.stdout}")
+        print(f"Subprocess stderr: {result.stderr}")
+
+        if result.returncode == 0:
+            # Last line mein JSON output hoga
+            last_line = result.stdout.strip().split('\n')[-1]
+            output = json.loads(last_line)
+            pages = output.get("pages", 0)
+            chunks = output.get("chunks", 0)
+            print(f"Ingestion complete ✅ — pages: {pages}, chunks: {chunks}")
+        else:
+            print(f"Ingestion failed with return code: {result.returncode}")
+    except subprocess.TimeoutExpired:
+        print("Ingestion timeout — took more than 120 seconds")
     except Exception as e:
-        print(f"Ingestion failed: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"Ingestion error: {e}")
 
     # Store metadata in Supabase
     supabase.table("documents").insert({
@@ -112,10 +104,6 @@ async def upload_document(
 
 @router.get("/")
 async def get_documents(user_id: str = Depends(verify_token)):
-    """
-    Get all documents for current user.
-    Protected route — requires valid JWT token.
-    """
     result = supabase.table("documents").select("*").eq("user_id", user_id).execute()
     return {"documents": result.data}
 
@@ -125,16 +113,6 @@ async def delete_document(
     document_id: str,
     user_id: str = Depends(verify_token)
 ):
-    """
-    Delete a document by ID.
-    Only document owner can delete.
-
-    Steps:
-    1. Check document exists and belongs to user
-    2. Delete from Supabase
-    3. Delete file from disk
-    """
-    # Check ownership
     result = supabase.table("documents").select("*").eq("id", document_id).eq("user_id", user_id).execute()
 
     if not result.data:
@@ -143,10 +121,8 @@ async def delete_document(
             detail="Document not found"
         )
 
-    # Delete from Supabase
     supabase.table("documents").delete().eq("id", document_id).execute()
 
-    # Delete file from disk
     file_path = result.data[0]["file_path"]
     if os.path.exists(file_path):
         os.remove(file_path)
