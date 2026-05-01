@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from routes.auth_routes import router as auth_router
 from routes.document_routes import router as document_router
 from routes.query_routes import router as query_router
+from routes.discover_routes import router as discover_router  # ← ADD
 
 app = FastAPI(
     title="Ask My Docs API",
@@ -24,6 +25,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(document_router)
 app.include_router(query_router)
+app.include_router(discover_router)  # ← ADD
 
 @app.get("/")
 async def root():

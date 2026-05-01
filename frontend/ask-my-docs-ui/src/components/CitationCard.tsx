@@ -1,14 +1,13 @@
 interface CitationCardProps {
-  filename: string;
+  citationNumber: number;
   page: number;
-  quote: string;
+  text: string;
 }
 
-const CitationCard = ({ filename, page, quote }: CitationCardProps) => {
+const CitationCard = ({ citationNumber, page, text }: CitationCardProps) => {
   return (
     <div
       style={{
-        marginTop: 10,
         borderLeft: "3px solid #22c55e",
         backgroundColor: "var(--card-bg)",
         borderRadius: "0 8px 8px 0",
@@ -32,14 +31,13 @@ const CitationCard = ({ filename, page, quote }: CitationCardProps) => {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 7,
+            fontSize: 9,
             fontWeight: 700,
             color: "white",
-            letterSpacing: -0.5,
             flexShrink: 0,
           }}
         >
-          PDF
+          {citationNumber}
         </div>
         <span
           style={{
@@ -48,7 +46,7 @@ const CitationCard = ({ filename, page, quote }: CitationCardProps) => {
             color: "var(--text-primary)",
           }}
         >
-          {filename} — Page {page}
+          Page {page}
         </span>
       </div>
       <p
@@ -60,7 +58,7 @@ const CitationCard = ({ filename, page, quote }: CitationCardProps) => {
           margin: 0,
         }}
       >
-        "{quote}"
+        "{text}"
       </p>
     </div>
   );

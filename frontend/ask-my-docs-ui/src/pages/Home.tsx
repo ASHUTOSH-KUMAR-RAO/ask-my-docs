@@ -2,19 +2,41 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Upload, FileText, ArrowRight } from "lucide-react";
 import { useState, useRef } from "react";
+import { api } from "../services/api";
 
 const Home = () => {
   const navigate = useNavigate();
   const [dragOver, setDragOver] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadedDoc, setUploadedDoc] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     if (file.type !== "application/pdf") {
-      alert("Only PDF files allowed!");
+      setError("Only PDF files allowed!");
       return;
     }
     setUploadedFile(file);
+    setUploading(true);
+    setError(null);
+
+    try {
+      const data = await api.uploadDocument(file);
+      if (data.document_id) {
+        setUploadedDoc({ id: data.document_id, name: data.name });
+      } else {
+        setError(data.detail || "Upload failed");
+      }
+    } catch (err) {
+      setError("Upload failed — please try again");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -29,7 +51,6 @@ const Home = () => {
       className="min-h-screen w-full flex flex-col items-center justify-center relative"
       style={{ backgroundColor: "var(--background)" }}
     >
-      {/* Glow */}
       <div
         className="absolute pointer-events-none"
         style={{
@@ -80,11 +101,15 @@ const Home = () => {
           }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
-          onClick={() => inputRef.current?.click()}
+          onClick={() => !uploading && inputRef.current?.click()}
           className="w-full flex flex-col items-center justify-center gap-6 cursor-pointer transition-all duration-300 rounded-2xl border-2 border-dashed"
           style={{
             padding: "60px 40px",
-            borderColor: dragOver ? "#4ade80" : "#1F1F2E",
+            borderColor: dragOver
+              ? "#4ade80"
+              : uploading
+                ? "#22c55e"
+                : "#1F1F2E",
             backgroundColor: dragOver ? "#1A1A24" : "#111118",
           }}
         >
@@ -94,7 +119,10 @@ const Home = () => {
             className="w-16 h-16 rounded-2xl flex items-center justify-center"
             style={{ backgroundColor: "#1A1A24", border: "1px solid #2A2A3A" }}
           >
-            <Upload size={28} color={dragOver ? "#4ade80" : "#6B7280"} />
+            <Upload
+              size={28}
+              color={dragOver ? "#4ade80" : uploading ? "#22c55e" : "#6B7280"}
+            />
           </motion.div>
 
           <div className="text-center">
@@ -102,29 +130,35 @@ const Home = () => {
               className="text-lg font-semibold mb-2"
               style={{ color: "#FFFFFF" }}
             >
-              {dragOver ? "Drop it here!" : "Drag & Drop your PDF here"}
+              {uploading
+                ? "Uploading..."
+                : dragOver
+                  ? "Drop it here!"
+                  : "Drag & Drop your PDF here"}
             </p>
             <p className="text-sm" style={{ color: "#6B7280" }}>
               or click to browse files
             </p>
           </div>
 
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            style={{
-              background: "linear-gradient(135deg, #4ade80, #16a34a)",
-              color: "white",
-              border: "none",
-              cursor: "pointer",
-              padding: "12px 40px",
-              borderRadius: "12px",
-              fontSize: "14px",
-              fontWeight: 600,
-            }}
-          >
-            Browse Files
-          </motion.button>
+          {!uploading && (
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              style={{
+                background: "linear-gradient(135deg, #4ade80, #16a34a)",
+                color: "white",
+                border: "none",
+                cursor: "pointer",
+                padding: "12px 40px",
+                borderRadius: "12px",
+                fontSize: "14px",
+                fontWeight: 600,
+              }}
+            >
+              Browse Files
+            </motion.button>
+          )}
 
           <input
             ref={inputRef}
@@ -137,6 +171,9 @@ const Home = () => {
             }}
           />
         </motion.div>
+
+        {/* Error */}
+        {error && <p style={{ color: "#EF4444", fontSize: "13px" }}>{error}</p>}
 
         {/* Uploaded File */}
         {uploadedFile && (
@@ -163,9 +200,9 @@ const Home = () => {
             </div>
             <span
               className="text-xs font-semibold"
-              style={{ color: "#4ade80" }}
+              style={{ color: uploading ? "#F59E0B" : "#4ade80" }}
             >
-              ✓ Ready
+              {uploading ? "Uploading..." : "✓ Ready"}
             </span>
           </motion.div>
         )}

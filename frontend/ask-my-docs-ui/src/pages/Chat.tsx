@@ -6,84 +6,60 @@ import ChatBox from "@/components/ChatBox";
 
 const Chat = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
+    null,
+  );
 
   return (
     <div
       style={{
         display: "flex",
-        overflow: "hidden",
-        height: "100%",
-        width: "100%",
+        height: "100vh",
+        width: "100vw",
         padding: 12,
         gap: 12,
-        position: "relative",
+        position: "fixed",
+        top: 0,
+        left: 0,
         backgroundColor: "var(--background)",
         boxSizing: "border-box",
+        overflow: "hidden",
       }}
     >
-      {/* Glow top left */}
-      <div
-        style={{
-          position: "absolute",
-          pointerEvents: "none",
-          top: -64,
-          left: 96,
-          width: 320,
-          height: 320,
-          borderRadius: "50%",
-          background:
-            "radial-gradient(circle, rgba(74,222,128,0.08) 0%, transparent 70%)",
-          zIndex: 0,
-        }}
-      />
-
-      {/* Glow bottom right */}
-      <div
-        style={{
-          position: "absolute",
-          pointerEvents: "none",
-          bottom: -64,
-          right: 96,
-          width: 320,
-          height: 320,
-          borderRadius: "50%",
-          background:
-            "radial-gradient(circle, rgba(74,222,128,0.05) 0%, transparent 70%)",
-          zIndex: 0,
-        }}
-      />
-
       {/* Sidebar */}
-      <motion.div
-        initial={{ x: -280, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        style={{
-          flexShrink: 0,
-          borderRadius: 16,
-          overflow: "hidden",
-          zIndex: 10,
-          display: "flex",
-          flexDirection: "column",
-          backgroundColor: "var(--sidebar-bg)",
-          border: "1px solid var(--border)",
-          alignSelf: "stretch",
-        }}
-      >
-        <Sidebar
-          isOpen={sidebarOpen}
-          onToggle={() => setSidebarOpen(!sidebarOpen)}
-        />
-      </motion.div>
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.div
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 260, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            style={{
+              height: "100%",
+              flexShrink: 0,
+              borderRadius: 16,
+              overflow: "hidden",
+              backgroundColor: "var(--sidebar-bg)",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <Sidebar
+              isOpen={sidebarOpen}
+              onToggle={() => setSidebarOpen(false)}
+              onSelectDocument={setSelectedDocumentId}
+              selectedDocumentId={selectedDocumentId}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Sidebar closed — floating toggle button */}
+      {/* Sidebar closed toggle */}
       <AnimatePresence>
         {!sidebarOpen && (
           <motion.button
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             onClick={() => setSidebarOpen(true)}
             style={{
               position: "absolute",
@@ -109,29 +85,25 @@ const Chat = () => {
       </AnimatePresence>
 
       {/* Chat Area */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.4, delay: 0.15 }}
+      <div
         style={{
           flex: 1,
+          height: "100%",
           borderRadius: 16,
           overflow: "hidden",
-          zIndex: 10,
+          backgroundColor: "var(--chat-bg)",
+          border: "1px solid var(--border)",
           display: "flex",
           flexDirection: "column",
           minWidth: 0,
-          minHeight: 0,
-          backgroundColor: "var(--chat-bg)",
-          border: "1px solid var(--border)",
-          alignSelf: "stretch",
         }}
       >
         <ChatBox
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           sidebarOpen={sidebarOpen}
+          documentId={selectedDocumentId}
         />
-      </motion.div>
+      </div>
     </div>
   );
 };
