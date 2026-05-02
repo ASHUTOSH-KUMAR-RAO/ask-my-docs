@@ -24,10 +24,16 @@ jobs:
       - name: Install dependencies
         working-directory: ./backend
         run: |
-          pip install fastapi uvicorn supabase pydantic-settings python-jose bcrypt pypdf langchain-text-splitters chromadb rank-bm25 groq requests
+          pip install fastapi uvicorn supabase pydantic-settings python-jose bcrypt pypdf langchain-text-splitters chromadb rank-bm25 groq requests sentence-transformers
 
       - name: Check imports
         working-directory: ./backend
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_SECRET: ${{ secrets.SUPABASE_SECRET }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
         run: |
           python -c "from main import app; print('Backend OK')"
 
