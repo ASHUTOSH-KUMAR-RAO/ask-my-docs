@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         working-directory: ./backend
         run: |
-          pip install fastapi uvicorn supabase pydantic-settings python-jose bcrypt pypdf langchain-text-splitters chromadb rank-bm25 groq requests sentence-transformers passlib "pydantic[email]"
+          pip install fastapi uvicorn supabase pydantic-settings python-jose bcrypt pypdf langchain-text-splitters chromadb rank-bm25 groq requests sentence-transformers passlib "pydantic[email]" python-multipart
 
       - name: Check imports
         working-directory: ./backend
