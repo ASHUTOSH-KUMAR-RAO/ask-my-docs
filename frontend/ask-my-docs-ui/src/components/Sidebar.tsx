@@ -205,12 +205,13 @@ const Sidebar = ({
               }
             >
               <Library size={15} color="#9CA3AF" style={{ flexShrink: 0 }} />
-              Upload
+              Home
             </motion.button>
 
             <motion.button
               whileTap={{ scale: 0.98 }}
-              onClick={() => navigate("/discover")}
+              // Library button onClick:
+              onClick={() => navigate("/upload")}
               style={{
                 width: "100%",
                 display: "flex",

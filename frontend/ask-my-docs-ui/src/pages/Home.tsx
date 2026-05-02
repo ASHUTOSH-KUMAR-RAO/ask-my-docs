@@ -1,247 +1,384 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Upload, FileText, ArrowRight } from "lucide-react";
-import { useState, useRef } from "react";
+import {
+  Upload,
+  MessageSquare,
+  Compass,
+  FileText,
+  ArrowRight,
+} from "lucide-react";
+import { useState, useEffect } from "react";
 import { api } from "../services/api";
 
 const Home = () => {
   const navigate = useNavigate();
-  const [dragOver, setDragOver] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadedDoc, setUploadedDoc] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const name = localStorage.getItem("name") || "User";
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleFile = async (file: File) => {
-    if (file.type !== "application/pdf") {
-      setError("Only PDF files allowed!");
-      return;
-    }
-    setUploadedFile(file);
-    setUploading(true);
-    setError(null);
-
-    try {
-      const data = await api.uploadDocument(file);
-      if (data.document_id) {
-        setUploadedDoc({ id: data.document_id, name: data.name });
-      } else {
-        setError(data.detail || "Upload failed");
+  useEffect(() => {
+    const fetchDocs = async () => {
+      try {
+        const data = await api.getDocuments();
+        setDocuments(data.documents || []);
+      } catch (err) {
+        console.error("Failed to fetch documents");
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError("Upload failed — please try again");
-    } finally {
-      setUploading(false);
-    }
-  };
+    };
+    fetchDocs();
+  }, []);
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
-  };
+  const quickActions = [
+    {
+      icon: <Upload size={20} color="#4ade80" />,
+      title: "Upload Document",
+      desc: "Add a new PDF to your library",
+      path: "/upload",
+      border: "#2A4A3A",
+      bg: "#1E3A2A",
+    },
+    {
+      icon: <MessageSquare size={20} color="#4ade80" />,
+      title: "Go to Chat",
+      desc: "Ask questions from your docs",
+      path: "/chat",
+      border: "#2A4A3A",
+      bg: "#1E3A2A",
+    },
+    {
+      icon: <Compass size={20} color="#4ade80" />,
+      title: "Discover",
+      desc: "Explore popular questions & tips",
+      path: "/discover",
+      border: "#2A4A3A",
+      bg: "#1E3A2A",
+    },
+  ];
 
   return (
     <div
-      className="min-h-screen w-full flex flex-col items-center justify-center relative"
-      style={{ backgroundColor: "var(--background)" }}
+      className="min-h-screen w-full relative"
+      style={{
+        backgroundColor: "var(--background)",
+        overflowY: "auto",
+        padding: "48px 32px",
+      }}
     >
+      {/* Glow */}
       <div
-        className="absolute pointer-events-none"
         style={{
-          top: "0px",
+          position: "fixed",
+          top: 0,
           left: "50%",
           transform: "translateX(-50%)",
-          width: "600px",
-          height: "600px",
+          width: 600,
+          height: 600,
+          pointerEvents: "none",
           background:
             "radial-gradient(circle, rgba(74,222,128,0.06) 0%, transparent 70%)",
         }}
       />
 
-      <div className="w-full max-w-2xl px-6 flex flex-col items-center gap-8 relative z-10">
-        {/* Logo */}
+      <div
+        style={{
+          maxWidth: 720,
+          margin: "0 auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: 40,
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        {/* Welcome Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="flex flex-col items-center gap-4"
+          style={{ display: "flex", alignItems: "center", gap: 16 }}
         >
           <img
             src="/chat.jpg"
-            alt="Ask My Docs Logo"
-            className="w-16 h-16 rounded-2xl object-cover"
+            alt="logo"
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 14,
+              objectFit: "cover",
+            }}
           />
-          <div className="text-center">
+          <div>
             <h1
-              className="text-4xl font-bold mb-2"
-              style={{ color: "#FFFFFF" }}
+              style={{
+                fontSize: 24,
+                fontWeight: 700,
+                color: "var(--text-primary)",
+                margin: 0,
+              }}
             >
-              Ask My Docs
+              Welcome back, {name}! 👋
             </h1>
-            <p className="text-base" style={{ color: "#6B7280" }}>
-              Upload your documents and ask anything!
+            <p
+              style={{
+                fontSize: 14,
+                color: "var(--text-secondary)",
+                margin: 0,
+              }}
+            >
+              What would you like to do today?
             </p>
           </div>
         </motion.div>
 
-        {/* Upload Area */}
+        {/* Stats */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-          onClick={() => !uploading && inputRef.current?.click()}
-          className="w-full flex flex-col items-center justify-center gap-6 cursor-pointer transition-all duration-300 rounded-2xl border-2 border-dashed"
-          style={{
-            padding: "60px 40px",
-            borderColor: dragOver
-              ? "#4ade80"
-              : uploading
-                ? "#22c55e"
-                : "#1F1F2E",
-            backgroundColor: dragOver ? "#1A1A24" : "#111118",
-          }}
+          transition={{ delay: 0.1 }}
+          style={{ display: "flex", gap: 12 }}
         >
-          <motion.div
-            animate={{ scale: dragOver ? 1.15 : 1 }}
-            transition={{ duration: 0.2 }}
-            className="w-16 h-16 rounded-2xl flex items-center justify-center"
-            style={{ backgroundColor: "#1A1A24", border: "1px solid #2A2A3A" }}
-          >
-            <Upload
-              size={28}
-              color={dragOver ? "#4ade80" : uploading ? "#22c55e" : "#6B7280"}
-            />
-          </motion.div>
-
-          <div className="text-center">
-            <p
-              className="text-lg font-semibold mb-2"
-              style={{ color: "#FFFFFF" }}
-            >
-              {uploading
-                ? "Uploading..."
-                : dragOver
-                  ? "Drop it here!"
-                  : "Drag & Drop your PDF here"}
-            </p>
-            <p className="text-sm" style={{ color: "#6B7280" }}>
-              or click to browse files
-            </p>
-          </div>
-
-          {!uploading && (
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
+          {[
+            { label: "Documents", value: loading ? "..." : documents.length },
+            { label: "Status", value: "Active" },
+            { label: "Plan", value: "Free" },
+          ].map((stat, i) => (
+            <div
+              key={i}
               style={{
-                background: "linear-gradient(135deg, #4ade80, #16a34a)",
-                color: "white",
-                border: "none",
-                cursor: "pointer",
-                padding: "12px 40px",
-                borderRadius: "12px",
-                fontSize: "14px",
-                fontWeight: 600,
+                flex: 1,
+                padding: "16px 20px",
+                borderRadius: 12,
+                backgroundColor: "var(--card-bg)",
+                border: "1px solid var(--border)",
+                textAlign: "center",
               }}
             >
-              Browse Files
-            </motion.button>
-          )}
-
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".pdf"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleFile(file);
-            }}
-          />
+              <p
+                style={{
+                  fontSize: 22,
+                  fontWeight: 700,
+                  color: "#4ade80",
+                  margin: 0,
+                }}
+              >
+                {stat.value}
+              </p>
+              <p
+                style={{
+                  fontSize: 12,
+                  color: "var(--text-secondary)",
+                  margin: 0,
+                }}
+              >
+                {stat.label}
+              </p>
+            </div>
+          ))}
         </motion.div>
 
-        {/* Error */}
-        {error && <p style={{ color: "#EF4444", fontSize: "13px" }}>{error}</p>}
-
-        {/* Uploaded File */}
-        {uploadedFile && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full px-5 py-4 rounded-xl flex items-center justify-between"
+        {/* Quick Actions */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          style={{ display: "flex", flexDirection: "column", gap: 14 }}
+        >
+          <h2
             style={{
-              backgroundColor: "#1A1A24",
-              border: "1px solid #2A2A3A",
-              borderLeft: "3px solid #4ade80",
+              fontSize: 13,
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "var(--text-muted)",
+              margin: 0,
             }}
           >
-            <div className="flex items-center gap-3">
-              <FileText size={18} color="#4ade80" />
-              <div>
-                <p className="text-sm font-medium" style={{ color: "#FFFFFF" }}>
-                  {uploadedFile.name}
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: "#6B7280" }}>
-                  {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
-                </p>
-              </div>
-            </div>
-            <span
-              className="text-xs font-semibold"
-              style={{ color: uploading ? "#F59E0B" : "#4ade80" }}
-            >
-              {uploading ? "Uploading..." : "✓ Ready"}
-            </span>
-          </motion.div>
-        )}
+            Quick Actions
+          </h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {quickActions.map((action, i) => (
+              <motion.div
+                key={i}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                onClick={() => navigate(action.path)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "16px 18px",
+                  borderRadius: 12,
+                  backgroundColor: "var(--card-bg)",
+                  border: "1px solid var(--border)",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.borderColor = "#4ade80")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.borderColor = "var(--border)")
+                }
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <div
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 10,
+                      backgroundColor: action.bg,
+                      border: `1px solid ${action.border}`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {action.icon}
+                  </div>
+                  <div>
+                    <p
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "var(--text-primary)",
+                        margin: 0,
+                      }}
+                    >
+                      {action.title}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "var(--text-secondary)",
+                        margin: 0,
+                      }}
+                    >
+                      {action.desc}
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight size={15} color="#4ade80" />
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
 
-        {/* Go to Chat */}
-        <motion.button
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+        {/* Recent Documents */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          whileHover={{
-            scale: 1.03,
-            backgroundColor: "#1A1A24",
-            borderColor: "#4ade80",
-            color: "#4ade80",
-          }}
-          whileTap={{ scale: 0.97 }}
-          onClick={() => navigate("/chat")}
           style={{
             display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "14px 48px",
-            borderRadius: "12px",
-            fontSize: "14px",
-            fontWeight: 600,
-            backgroundColor: "transparent",
-            border: "1px solid #2A2A3A",
-            color: "#9CA3AF",
-            cursor: "pointer",
+            flexDirection: "column",
+            gap: 14,
+            paddingBottom: 40,
           }}
         >
-          Go to Chat
-          <motion.span
-            animate={{ x: [0, 4, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
+          <h2
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "var(--text-muted)",
+              margin: 0,
+            }}
           >
-            <ArrowRight size={15} />
-          </motion.span>
-        </motion.button>
+            Recent Documents
+          </h2>
+
+          {loading ? (
+            [0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                animate={{ opacity: [0.4, 0.8, 0.4] }}
+                transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
+                style={{
+                  height: 56,
+                  borderRadius: 12,
+                  backgroundColor: "var(--card-bg)",
+                  border: "1px solid var(--border)",
+                }}
+              />
+            ))
+          ) : documents.length === 0 ? (
+            <div
+              style={{
+                padding: "32px",
+                borderRadius: 12,
+                textAlign: "center",
+                backgroundColor: "var(--card-bg)",
+                border: "1px dashed var(--border)",
+              }}
+            >
+              <p
+                style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}
+              >
+                No documents yet —{" "}
+                <span
+                  onClick={() => navigate("/upload")}
+                  style={{ color: "#4ade80", cursor: "pointer" }}
+                >
+                  upload one!
+                </span>
+              </p>
+            </div>
+          ) : (
+            documents.slice(0, 5).map((doc, i) => (
+              <motion.div
+                key={doc.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.08 }}
+                whileHover={{ scale: 1.01 }}
+                onClick={() => navigate("/chat")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "14px 16px",
+                  borderRadius: 12,
+                  backgroundColor: "var(--card-bg)",
+                  border: "1px solid var(--border)",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.borderColor = "#4ade80")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.borderColor = "var(--border)")
+                }
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <FileText size={16} color="#4ade80" />
+                  <div>
+                    <p
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "var(--text-primary)",
+                        margin: 0,
+                      }}
+                    >
+                      {doc.name}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 11,
+                        color: "var(--text-secondary)",
+                        margin: 0,
+                      }}
+                    >
+                      {(doc.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight size={14} color="#4ade80" />
+              </motion.div>
+            ))
+          )}
+        </motion.div>
       </div>
     </div>
   );

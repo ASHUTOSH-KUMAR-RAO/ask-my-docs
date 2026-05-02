@@ -1,0 +1,54 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Backend Check ──────────────────────────
+  backend:
+    name: Backend Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          pip install fastapi uvicorn supabase pydantic-settings python-jose bcrypt pypdf langchain-text-splitters chromadb rank-bm25 groq requests
+
+      - name: Check imports
+        working-directory: ./backend
+        run: |
+          python -c "from main import app; print('Backend OK')"
+
+  # ── Frontend Check ─────────────────────────
+  frontend:
+    name: Frontend Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: ./frontend/ask-my-docs-ui
+        run: npm install
+
+      - name: Build check
+        working-directory: ./frontend/ask-my-docs-ui
+        run: npm run build
