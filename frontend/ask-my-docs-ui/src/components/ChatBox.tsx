@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, Send, Share2, MoreHorizontal, PanelLeftOpen, X, Trash2, Download, Copy, Check } from "lucide-react";
+import { Mic, Send, Share2, MoreHorizontal, PanelLeftOpen,Trash2, Download, Copy, Check } from "lucide-react";
 import MessageBubble from "@/components/MessageBubble";
 import { useChat } from "../hooks/useChat";
 
